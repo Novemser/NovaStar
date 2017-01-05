@@ -1,0 +1,15 @@
+<configuration>
+    <property>
+        <name>hadoop.tmp.dir</name>
+        <value>/home/nova/cloudData</value>
+    </property>
+    <property>
+        <name>fs.defaultFS</name>
+        <value>hdfs://cMaster:8020</value>
+    </property>
+
+    <property>
+        <name>dfs.permissions</name>
+        <value>false</value>
+    </property>
+</configuration>

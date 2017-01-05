@@ -1,0 +1,121 @@
+package service;
+
+import com.alibaba.fastjson.JSONArray;
+import com.alibaba.fastjson.JSONObject;
+import nsdfs.Block;
+import nsdfs.FileBlock;
+import nsdfs.FileMetadata;
+import nsdfs.ResourceManager;
+import nsdfs.slave.SlaveNode;
+import org.springframework.beans.factory.annotation.Autowired;
+import org.springframework.stereotype.Service;
+import util.Constants;
+
+import java.util.Date;
+import java.util.List;
+import java.util.Random;
+import java.util.UUID;
+
+/**
+ * Project: HadoopDFS
+ * Package: service
+ * Author:  Novemser
+ * 2016/12/29
+ */
+@Service
+public class MasterService {
+
+    private final ResourceManager manager;
+
+    @Autowired
+    public MasterService(ResourceManager manager) {
+        this.manager = manager;
+    }
+
+    public List<FileMetadata> getFileNamespace() {
+        return manager.getMetadataList();
+    }
+
+    public JSONObject requestForUpload(JSONObject request) {
+        String fileName = request.getString("name");
+        String folder = request.getString("currentFolder");
+
+        folder = (null == folder) ? "/" : folder;
+
+        int fileSize = request.getInteger("fileSize");
+        int blockSize = request.getInteger("blockSize");
+        int blockNum = request.getInteger("blockNum");
+//        JSONObject result = new JSONObject();
+
+        // 先检查一下slave的状态
+        manager.checkSlaveStatus();
+
+        // 创建文件元数据
+        FileMetadata metadata = new FileMetadata();
+        metadata.setFileName(fileName);
+        metadata.setFileSize(fileSize);
+        metadata.setAbsPath(folder);
+        metadata.setCreateTime(new Date());
+        metadata.setFileId(UUID.randomUUID().toString());
+        metadata.setRealBlockCount(blockNum);
+
+        //TODO:实现分配 每个Block一共存储N个地方
+        Random random = new Random();
+        JSONObject blockInfo = new JSONObject();
+        for (int i = 1; i <= blockNum; i++) {
+            JSONArray blockList = new JSONArray();
+
+            // 从随机的起始节点依次往后取N个节点存储
+            int nodeIndex = 0;
+            SlaveNode node;
+            Block block;
+            FileBlock fileBlock;
+            for (int j = 0; j < Constants.REDUNDANT_COUNT; j++) {
+                // 计算下一个节点的位置
+                if (j == 0) {
+                    nodeIndex = random.nextInt() % manager.getSlaveCount();
+                    if (nodeIndex < 0)
+                        nodeIndex = -nodeIndex;
+                } else {
+                    nodeIndex = nodeIndex + 1;
+                    nodeIndex = nodeIndex % manager.getSlaveCount();
+                }
+
+                // 根据计算生成的索引找到下一个node
+                node = manager.getSlave(nodeIndex);
+                block = manager.createNextBlock();
+                // 设置block的信息
+                block.setSlaveName(node.getSlaveName());
+                block.setSlaveIP(node.getSlaveIP());
+                block.setPassword(node.getPassword());
+                block.setUsername(node.getUsername());
+                block.setFolderPath(node.getPathFolder());
+                block.setBlockSize(blockSize);
+                block.setBlockName("block_" + block.getBlockId());
+                block.setAbsPath(block.getFolderPath() + "/" + block.getBlockName());
+
+                blockList.add(block);
+                // 创建fileBlock用于维护namespace
+                fileBlock = new FileBlock(block, i);
+                metadata.addFileBlock(fileBlock);
+            }
+
+
+            blockInfo.put("block" + i, blockList);
+        }
+
+
+        manager.addFileMetadata(metadata);
+        return blockInfo;
+    }
+
+    public JSONObject showSlaveStatus() {
+        return manager.checkSlaveStatus();
+    }
+
+    public JSONObject verifyFileExists(String fileId) {
+        JSONObject result = new JSONObject();
+        result.put("status", manager.verifyFileIntegrity(fileId));
+        return result;
+    }
+}
