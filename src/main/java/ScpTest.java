@@ -15,8 +15,8 @@ import java.util.Vector;
  * 2016/12/28
  */
 public class ScpTest {
-    private static String HOST = "192.168.52.132";
-    private static int PORT = 22;
+    private static String HOST = "novemser.vicp.io";
+    private static int PORT = 7000;
     private static String USER = "nova";//登录用户名
     private static String PASSWORD = "a19951106";//生成私钥的密码和登录密码，这两个共用这个密码
     private static Connection connection = new Connection(HOST, PORT);
@@ -94,12 +94,12 @@ public class ScpTest {
                 "a19951106",
                 "/home/nova/NovaStar");
 
-        scpService.getFile(node, "/home/nova/hadoop-2.2.0/NOTICE.txt");
-//        try {
-//            // getFile("/home/users/ubuntu/error.txt", "c://");
-//            putFile("G:\\pac.txt", "/home/nova/NovaStar");
-//        } catch (Exception e) {
-//            e.printStackTrace();
-//        }
+        scpService.clearSlaveDir(node);
+        try {
+            // getFile("/home/users/ubuntu/error.txt", "c://");
+            putFile("G:\\pac.txt", "/home/nova/NovaStar");
+        } catch (Exception e) {
+            e.printStackTrace();
+        }
     }
 }

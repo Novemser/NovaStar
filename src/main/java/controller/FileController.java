@@ -1,12 +1,9 @@
 package controller;
 
 import com.alibaba.fastjson.JSONObject;
-import nsdfs.FileMetadata;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.web.bind.annotation.*;
 import service.MasterService;
-
-import java.util.List;
 
 /**
  * Project: HadoopDFS
@@ -27,11 +24,11 @@ public class FileController {
 
     @GetMapping("/file/{fileId}")
     public JSONObject getFile(@PathVariable String fileId) {
-        return null;
+        return service.getFileById(fileId);
     }
 
     @GetMapping("/files")
-    public List<FileMetadata> getFileNameSpace() {
+    public Object getFileNameSpace() {
         return service.getFileNamespace();
     }
 
@@ -42,12 +39,12 @@ public class FileController {
 
     @PostMapping("/delete")
     public JSONObject requestForDelete(@RequestBody JSONObject requestBody) {
-        return null;
+        return service.deleteFile(requestBody);
     }
 
     @PostMapping("/rename")
     public JSONObject rename(@RequestBody JSONObject requestBody) {
-        return null;
+        return service.renameFile(requestBody);
     }
 
     @GetMapping("/verify/{fileId}")
@@ -60,5 +57,13 @@ public class FileController {
         return service.showSlaveStatus();
     }
 
+    @GetMapping("/space")
+    public JSONObject getSpace() {
+        return service.calculateSpaceUsage();
+    }
 
+    @GetMapping("/format")
+    public JSONObject formatDir() {
+        return service.formatAllSlaves();
+    }
 }

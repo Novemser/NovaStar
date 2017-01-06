@@ -11,10 +11,7 @@ import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.stereotype.Service;
 import util.Constants;
 
-import java.util.Date;
-import java.util.List;
-import java.util.Random;
-import java.util.UUID;
+import java.util.*;
 
 /**
  * Project: HadoopDFS
@@ -32,7 +29,7 @@ public class MasterService {
         this.manager = manager;
     }
 
-    public List<FileMetadata> getFileNamespace() {
+    public Object getFileNamespace() {
         return manager.getMetadataList();
     }
 
@@ -62,6 +59,7 @@ public class MasterService {
         //TODO:实现分配 每个Block一共存储N个地方
         Random random = new Random();
         JSONObject blockInfo = new JSONObject();
+        blockInfo.put("fileId", metadata.getFileId());
         for (int i = 1; i <= blockNum; i++) {
             JSONArray blockList = new JSONArray();
 
@@ -97,7 +95,7 @@ public class MasterService {
                 blockList.add(block);
                 // 创建fileBlock用于维护namespace
                 fileBlock = new FileBlock(block, i);
-                metadata.addFileBlock(fileBlock);
+                metadata.addFileBlock(fileBlock, j);
             }
 
 
@@ -116,6 +114,60 @@ public class MasterService {
     public JSONObject verifyFileExists(String fileId) {
         JSONObject result = new JSONObject();
         result.put("status", manager.verifyFileIntegrity(fileId));
+        return result;
+    }
+
+    public JSONObject renameFile(JSONObject request) {
+        JSONObject result = new JSONObject();
+
+        String fileId = request.getString("fileId");
+        String fileName = request.getString("fileName");
+        boolean succeed = manager.renameFileMetadata(fileId, fileName);
+
+        if (succeed)
+            result.put("status", "OK");
+        else
+            result.put("status", "NOT_FOUND");
+
+        return result;
+    }
+
+    public JSONObject deleteFile(JSONObject request) {
+        JSONObject result = new JSONObject();
+
+        String fileId = request.getString("fileId");
+        boolean succeed = manager.deleteFileMetadata(fileId);
+        if (succeed)
+            result.put("status", "OK");
+        else
+            result.put("status", "NOT_FOUND");
+
+        return result;
+    }
+
+    public JSONObject getFileById(String fileId) {
+        JSONObject result = new JSONObject();
+        FileMetadata metadata = manager.getFileById(fileId);
+
+        if (null == metadata)
+            result.put("file", "NOT_FOUND");
+        else
+            result.put("file", metadata);
+
+        return result;
+    }
+
+    public JSONObject calculateSpaceUsage() {
+        JSONObject result = new JSONObject();
+
+        return result;
+    }
+
+    public JSONObject formatAllSlaves() {
+        JSONObject result = new JSONObject();
+        manager.formatDisk();
+        manager.setMetadataList(new ArrayList<>());
+        result.put("status", "OK");
         return result;
     }
 }

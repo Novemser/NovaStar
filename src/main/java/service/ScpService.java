@@ -92,11 +92,38 @@ public class ScpService {
         return false;
     }
 
+    public void clearSlaveDir(SlaveNode slaveNode) {
+        connection = new Connection(slaveNode.getSlaveIP(), Constants.defaultPort);
+
+        try {
+            connection.connect();
+            boolean isAuthenticated = authWithSlave(slaveNode);
+            if (isAuthenticated) {
+                SFTPv3Client client = new SFTPv3Client(connection);
+                Vector vector = client.ls(slaveNode.getPathFolder());
+                for (Object obj : vector) {
+                    SFTPv3DirectoryEntry entry = (SFTPv3DirectoryEntry) obj;
+                    String filePath = slaveNode.getPathFolder() + "/" + entry.filename;
+                    Util.printlnTime("Remove " + filePath);
+                    if (!entry.filename.equals(".") && !entry.filename.equals(".."))
+                        client.rm(filePath);
+                }
+            }
+        } catch (IOException e) {
+            e.printStackTrace();
+            Util.printerrTime("remove失败 " + e.getMessage());
+        } finally {
+            connection.close();
+        }
+    }
+
     public List<SFTPv3DirectoryEntry> lsBySlave(SlaveNode slaveNode) {
         connection = new Connection(slaveNode.getSlaveIP(), Constants.defaultPort);
-        boolean isAuthenticated = authWithSlave(slaveNode);
+
         List<SFTPv3DirectoryEntry> directoryEntries = new ArrayList<>();
         try {
+            connection.connect();
+            boolean isAuthenticated = authWithSlave(slaveNode);
             if (isAuthenticated) {
                 SFTPv3Client client = new SFTPv3Client(connection);
                 Vector vector = client.ls(slaveNode.getPathFolder());
@@ -104,12 +131,12 @@ public class ScpService {
                     SFTPv3DirectoryEntry entry = (SFTPv3DirectoryEntry) obj;
                     directoryEntries.add(entry);
                     System.out.println(entry.filename);
-//                    System.out.println(entry.longEntry);
                 }
             }
         } catch (IOException e) {
             e.printStackTrace();
             Util.printerrTime("ls失败 " + e.getMessage());
+            System.out.println(slaveNode.getPathFolder());
         } finally {
             connection.close();
         }
@@ -122,7 +149,7 @@ public class ScpService {
         return file.renameTo(new File(localTempDir + "\\" + des));
     }
 
-    public void clearDirectory() {
+    public void clearLocalDirectory() {
         try {
             FileUtils.deleteDirectory(new File(localTempDir));
             new File(localTempDir).mkdir();

@@ -30,6 +30,6 @@ public class ResourceManagerTest {
     @Test
     public void testDelete() throws Exception {
         ScpService scpService = new ScpService();
-        scpService.clearDirectory();
+        scpService.clearLocalDirectory();
     }
 }

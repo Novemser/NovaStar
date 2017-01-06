@@ -1,9 +1,9 @@
 package nsdfs;
 
+import util.Constants;
+
 import java.io.Serializable;
-import java.util.ArrayList;
-import java.util.Date;
-import java.util.List;
+import java.util.*;
 
 /**
  * Project: HadoopDFS
@@ -18,13 +18,20 @@ public class FileMetadata implements Serializable {
 
     private int realBlockCount;
 
-    private List<FileBlock> fileBlocks;
+    private List<List<FileBlock>> fileBlocks;
 
     private String fileName;
 
     private int fileSize;
 
     private String absPath;
+
+    public FileMetadata() {
+        fileBlocks = new ArrayList<>();
+        for (int i = 0; i < Constants.REDUNDANT_COUNT; i++) {
+            fileBlocks.add(new ArrayList<>());
+        }
+    }
 
     public int getRealBlockCount() {
         return realBlockCount;
@@ -34,12 +41,8 @@ public class FileMetadata implements Serializable {
         this.realBlockCount = realBlockCount;
     }
 
-    public void addFileBlock(FileBlock block) {
-        fileBlocks.add(block);
-    }
-
-    public FileMetadata() {
-        fileBlocks = new ArrayList<FileBlock>();
+    public void addFileBlock(FileBlock block, int index) {
+        fileBlocks.get(index).add(block);
     }
 
     public String getFileId() {
@@ -66,13 +69,35 @@ public class FileMetadata implements Serializable {
         this.createTime = createTime;
     }
 
-    public List<FileBlock> getFileBlocks() {
-        return fileBlocks;
+    public List<Block> getDownloadBlocks() {
+        List<Block> blocks = new ArrayList<>();
+        Set<Integer> indexes = new HashSet<>();
+        for (FileBlock block : getAllFileBlocks()) {
+            int idx = block.getIndex();
+
+            if (indexes.contains(idx))
+                continue;
+
+            blocks.add(block.getBlock());
+            indexes.add(idx);
+        }
+
+        return blocks;
     }
 
-    public void setFileBlocks(List<FileBlock> fileBlocks) {
-        this.fileBlocks = fileBlocks;
+    public List<FileBlock> getAllFileBlocks() {
+        List<FileBlock> fileBlocksList = new ArrayList<>();
+        for (List<FileBlock> bl : fileBlocks) {
+            for (FileBlock fileBlock : bl) {
+                fileBlocksList.add(fileBlock);
+            }
+        }
+        return fileBlocksList;
     }
+
+//    public void setFileBlocks(List<FileBlock> fileBlocks) {
+//        this.fileBlocks = fileBlocks;
+//    }
 
     public int getFileSize() {
         return fileSize;

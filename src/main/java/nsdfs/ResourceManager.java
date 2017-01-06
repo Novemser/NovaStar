@@ -122,7 +122,7 @@ public class ResourceManager implements Serializable {
 
                     // 当失去连接次数==2次以后，将该节点从可用节点中删去
                     // 并且将这个节点存储的所有数据都保存在别的节点上
-                    if (slaveNode.getOutCount() == 2) {
+                    if (slaveNode.getOutCount() == 1) {
                         migrantData(slaveNode);
                     }
 
@@ -175,7 +175,7 @@ public class ResourceManager implements Serializable {
 
             Util.printerrTime(srcNode + " 失效, 开始转移数据....");
             for (FileMetadata metadata : metadataList) {
-                for (FileBlock fileBlock : metadata.getFileBlocks()) {
+                for (FileBlock fileBlock : metadata.getAllFileBlocks()) {
                     Block block = fileBlock.getBlock();
                     boolean hasToMove =
                             block.getSlaveIP().equals(srcNode.getSlaveIP()) &&
@@ -200,12 +200,14 @@ public class ResourceManager implements Serializable {
                     List<String> otherBlockIPList = new ArrayList<>();
                     FileBlock availOtherBlock = null;
                     // 统计其余block所存放在的物理区域
-                    for (FileBlock otherBlock : metadata.getFileBlocks()) {
+                    for (FileBlock otherBlock : metadata.getAllFileBlocks()) {
 
                         if (otherBlock.getIndex() == deadFileBlock.getIndex() &&
                                 !otherBlock.equals(deadFileBlock)) {
                             otherBlockIPList.add(otherBlock.getBlock().getSlaveIP());
-                            availOtherBlock = otherBlock;
+
+                            if (null == availOtherBlock)
+                                availOtherBlock = otherBlock;
                         }
                     }
 
@@ -216,31 +218,36 @@ public class ResourceManager implements Serializable {
                     for (SlaveNode slaveNodeToChoose : availableNodes) {
                         if (!otherBlockIPList.contains(slaveNodeToChoose.getSlaveIP())) {
                             nodeToMigrant = slaveNodeToChoose;
-                            break;
-                        } else {
+                        } else if (slaveNodeToChoose.getSlaveIP().equals(availOtherBlock.getBlock().getSlaveIP())) {
                             nodeFromMigrant = slaveNodeToChoose;
                         }
                     }
                     // 出错，没有找到满足条件的slave
-                    if (null == nodeToMigrant || null == availOtherBlock)
+                    if (null == nodeToMigrant || null == availOtherBlock || null == nodeFromMigrant)
                         return;
 
                     // 将block的数据拿过来然后放在新的slave上
                     // 把otherBlockSample的数据取过来
-                    scpService.getFile(nodeFromMigrant, availOtherBlock.getBlock().getAbsPath());
-                    // 重命名成需要的blockName
-                    scpService.renameBlock(availOtherBlock.getBlock().getBlockName(), deadFileBlock.getBlock().getBlockName());
+                    boolean status = scpService.getFile(nodeFromMigrant, availOtherBlock.getBlock().getAbsPath());
 
-                    // 在新的节点上复制数据
-                    scpService.putFile(nodeToMigrant, deadFileBlock.getBlock().getBlockName(), nodeToMigrant.getPathFolder());
+                    if (status) {
+                        // 重命名成需要的blockName
+                        scpService.renameBlock(availOtherBlock.getBlock().getBlockName(), deadFileBlock.getBlock().getBlockName());
+                        // 在新的节点上复制数据
+                        scpService.putFile(nodeToMigrant, deadFileBlock.getBlock().getBlockName(), nodeToMigrant.getPathFolder());
 
-                    // TODO:更新namespace
-                    Block deadBlock = deadFileBlock.getBlock();
-                    deadBlock.setSlaveIP(nodeToMigrant.getSlaveIP());
-                    deadBlock.setSlaveName(nodeToMigrant.getSlaveName());
-                    deadBlock.setFolderPath(nodeToMigrant.getPathFolder());
-                    deadBlock.setAbsPath(deadBlock.getFolderPath() + "/" + deadBlock.getBlockName());
+
+                        // TODO:更新namespace
+                        Block deadBlock = deadFileBlock.getBlock();
+                        deadBlock.setSlaveIP(nodeToMigrant.getSlaveIP());
+                        deadBlock.setSlaveName(nodeToMigrant.getSlaveName());
+                        deadBlock.setFolderPath(nodeToMigrant.getPathFolder());
+                        deadBlock.setAbsPath(deadBlock.getFolderPath() + "/" + deadBlock.getBlockName());
+                    }
+
                 }
+                PersistentService.persistMetadata(this, metaDataPath);
+
             }
             // TODO:否则就是挂掉了 暂时先不管
         }).start();
@@ -306,7 +313,7 @@ public class ResourceManager implements Serializable {
         Map<SlaveNode, List<SFTPv3DirectoryEntry>> slaveLSDirs = new HashMap<>();
 
         // 验证所有Block
-        for (FileBlock fileBlock : fileToVerify.getFileBlocks()) {
+        for (FileBlock fileBlock : fileToVerify.getAllFileBlocks()) {
             Block block = fileBlock.getBlock();
 
             SlaveNode storageNode = getSlaveByIP(block.getSlaveIP());
@@ -331,5 +338,53 @@ public class ResourceManager implements Serializable {
 
 
         return FileStatus.OK;
+    }
+
+    public boolean deleteFileMetadata(String fileId) {
+        FileMetadata dataToRemove = null;
+        for (FileMetadata metadata : metadataList) {
+            if (metadata.getFileId().equals(fileId)) {
+                dataToRemove = metadata;
+            }
+        }
+
+        if (null != dataToRemove) {
+            metadataList.remove(dataToRemove);
+            PersistentService.persistMetadata(this, metaDataPath);
+
+            return true;
+        }
+
+        return false;
+    }
+
+    public boolean renameFileMetadata(String fileId, String newFileName) {
+        for (FileMetadata metadata : metadataList) {
+            if (metadata.getFileId().equals(fileId)) {
+                metadata.setFileName(newFileName);
+                return true;
+            }
+        }
+
+        return false;
+    }
+
+    public FileMetadata getFileById(String fileId) {
+
+        for (FileMetadata metadata : metadataList) {
+            if (metadata.getFileId().equals(fileId)) {
+                return metadata;
+            }
+        }
+
+        return null;
+    }
+
+    public void formatDisk() {
+        for (SlaveNode slaveNode : getAvailableSlaveNodes()) {
+            scpService.clearSlaveDir(slaveNode);
+        }
+        PersistentService.persistMetadata(this, metaDataPath);
+
     }
 }
