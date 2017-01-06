@@ -213,7 +213,7 @@ public class ResourceManager implements Serializable {
                         }
                     }
 
-                    // 没有可以拿来用的节点……x
+                    // 没有可以拿来用的节点……
                     if (null == availOtherBlock)
                         return;
 
@@ -255,7 +255,10 @@ public class ResourceManager implements Serializable {
                 PersistentService.persistMetadata(this, metaDataPath);
 
             }
-            // TODO:否则就是挂掉了 暂时先不管
+            // TODO:否则就是挂掉了
+            else {
+
+            }
         }).start();
 
     }
@@ -305,6 +308,46 @@ public class ResourceManager implements Serializable {
         return node;
     }
 
+    public SlaveNode getNextAvailSlave(int index) {
+        List<SlaveNode> slaveNodes = getAvailableSlaveNodes();
+        return slaveNodes.get(index);
+    }
+
+    public FileStatus verifyFileIntegrity(FileMetadata fileToVerify) {
+        if (null == fileToVerify)
+            return FileStatus.NOT_FOUND;
+
+        Map<SlaveNode, List<SFTPv3DirectoryEntry>> slaveLSDirs = new HashMap<>();
+
+        // 验证所有Block
+        for (FileBlock fileBlock : fileToVerify.getAllFileBlocks()) {
+            Block block = fileBlock.getBlock();
+
+            SlaveNode storageNode = getSlaveByIP(block.getSlaveIP());
+
+            if (null != storageNode) {
+                // TODO:根据文件名验证文件存在
+                if (!slaveLSDirs.containsKey(storageNode))
+                    slaveLSDirs.put(storageNode, sshService.lsBySlave(storageNode));
+
+                List<SFTPv3DirectoryEntry> directoryEntries = slaveLSDirs.get(storageNode);
+                boolean exist = false;
+                for (SFTPv3DirectoryEntry entry : directoryEntries) {
+                    if (entry.filename.equals(block.getBlockName())) {
+                        exist = true;
+                    }
+                }
+
+                if (!exist)
+                    return FileStatus.BROKEN;
+            }
+        }
+
+
+        return FileStatus.OK;
+    }
+
+    @Deprecated
     public FileStatus verifyFileIntegrity(String fileId) {
         FileMetadata fileToVerify = null;
         for (FileMetadata metadata : getMetadataList()) {
@@ -415,8 +458,8 @@ public class ResourceManager implements Serializable {
         return availSpace.get() * 1024;
     }
 
-    public int calculateUsedSpace() {
-        int usedSpace = 0;
+    public long calculateUsedSpace() {
+        long usedSpace = 0;
         for (FileMetadata metadata : metadataList) {
             usedSpace += metadata.getFileSize();
         }

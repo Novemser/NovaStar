@@ -10,11 +10,13 @@ import nsdfs.slave.SlaveNode;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.stereotype.Service;
 import util.Constants;
+import util.FileStatus;
 
 import java.util.ArrayList;
 import java.util.Date;
 import java.util.Random;
 import java.util.UUID;
+import java.util.concurrent.ConcurrentHashMap;
 
 /**
  * Project: HadoopDFS
@@ -26,6 +28,7 @@ import java.util.UUID;
 public class MasterService {
 
     private final ResourceManager manager;
+    private ConcurrentHashMap<String, FileMetadata> uploadFileList = new ConcurrentHashMap<>();
 
     @Autowired
     public MasterService(ResourceManager manager) {
@@ -74,16 +77,16 @@ public class MasterService {
             for (int j = 0; j < Constants.REDUNDANT_COUNT; j++) {
                 // 计算下一个节点的位置
                 if (j == 0) {
-                    nodeIndex = random.nextInt() % manager.getSlaveCount();
+                    nodeIndex = random.nextInt() % manager.getAvailableNodeCount();
                     if (nodeIndex < 0)
                         nodeIndex = -nodeIndex;
                 } else {
                     nodeIndex = nodeIndex + 1;
-                    nodeIndex = nodeIndex % manager.getSlaveCount();
+                    nodeIndex = nodeIndex % manager.getAvailableNodeCount();
                 }
 
                 // 根据计算生成的索引找到下一个node
-                node = manager.getSlave(nodeIndex);
+                node = manager.getNextAvailSlave(nodeIndex);
                 block = manager.createNextBlock();
                 // 设置block的信息
                 block.setSlaveName(node.getSlaveName());
@@ -105,8 +108,9 @@ public class MasterService {
             blockInfo.put("block" + i, blockList);
         }
 
-
-        manager.addFileMetadata(metadata);
+        // 先暂时放在请求队列里
+        uploadFileList.put(metadata.getFileId(), metadata);
+//        manager.addFileMetadata(metadata);
         return blockInfo;
     }
 
@@ -116,7 +120,22 @@ public class MasterService {
 
     public JSONObject verifyFileExists(String fileId) {
         JSONObject result = new JSONObject();
-        result.put("status", manager.verifyFileIntegrity(fileId));
+        FileMetadata metadata = uploadFileList.get(fileId);
+        FileStatus status = manager.verifyFileIntegrity(metadata);
+
+        switch (status) {
+            case OK:
+                manager.addFileMetadata(metadata);
+                uploadFileList.remove(fileId);
+                break;
+            case BROKEN:
+                uploadFileList.remove(fileId);
+                break;
+            case NOT_FOUND:
+                break;
+        }
+
+        result.put("status", status);
         return result;
     }
 
