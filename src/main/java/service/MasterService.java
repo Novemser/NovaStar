@@ -11,7 +11,10 @@ import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.stereotype.Service;
 import util.Constants;
 
-import java.util.*;
+import java.util.ArrayList;
+import java.util.Date;
+import java.util.Random;
+import java.util.UUID;
 
 /**
  * Project: HadoopDFS
@@ -159,7 +162,12 @@ public class MasterService {
 
     public JSONObject calculateSpaceUsage() {
         JSONObject result = new JSONObject();
-
+        long total = manager.calculateTotalSpace();
+        long used = manager.calculateUsedSpace();
+        long free = total - used;
+        result.put("total", total);
+        result.put("used", used);
+        result.put("free", free);
         return result;
     }
 

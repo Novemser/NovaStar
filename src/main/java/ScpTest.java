@@ -3,7 +3,7 @@ import ch.ethz.ssh2.SCPClient;
 import ch.ethz.ssh2.SFTPv3Client;
 import ch.ethz.ssh2.SFTPv3DirectoryEntry;
 import nsdfs.slave.SlaveNode;
-import service.ScpService;
+import service.SSHService;
 
 import java.io.IOException;
 import java.util.Vector;
@@ -88,13 +88,13 @@ public class ScpTest {
     }
 
     public static void main(String[] args) {
-        ScpService scpService = new ScpService();
+        SSHService SSHService = new SSHService();
         SlaveNode node = new SlaveNode("Slave" + 1, HOST,
                 "nova",
                 "a19951106",
                 "/home/nova/NovaStar");
 
-        scpService.clearSlaveDir(node);
+        SSHService.clearSlaveDir(node);
         try {
             // getFile("/home/users/ubuntu/error.txt", "c://");
             putFile("G:\\pac.txt", "/home/nova/NovaStar");

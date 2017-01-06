@@ -3,7 +3,7 @@ package nsdfs;
 import org.junit.Assert;
 import org.junit.Test;
 import org.springframework.beans.factory.annotation.Autowired;
-import service.ScpService;
+import service.SSHService;
 
 /**
  * Project: HadoopDFS
@@ -23,13 +23,13 @@ public class ResourceManagerTest {
 
     @Test
     public void rename() throws Exception {
-        ScpService scpService = new ScpService();
-        Assert.assertTrue( scpService.renameBlock("pacc.txt", "pacc.txt"));
+        SSHService SSHService = new SSHService();
+        Assert.assertTrue( SSHService.renameBlock("pacc.txt", "pacc.txt"));
     }
 
     @Test
     public void testDelete() throws Exception {
-        ScpService scpService = new ScpService();
-        scpService.clearLocalDirectory();
+        SSHService SSHService = new SSHService();
+        SSHService.clearLocalDirectory();
     }
 }

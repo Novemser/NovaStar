@@ -4,6 +4,9 @@ import ch.ethz.ssh2.Connection;
 import ch.ethz.ssh2.SCPClient;
 import ch.ethz.ssh2.SFTPv3Client;
 import ch.ethz.ssh2.SFTPv3DirectoryEntry;
+import net.schmizz.sshj.SSHClient;
+import net.schmizz.sshj.common.IOUtils;
+import net.schmizz.sshj.connection.channel.direct.Session;
 import nsdfs.slave.SlaveNode;
 import org.apache.commons.io.FileUtils;
 import org.springframework.beans.factory.annotation.Value;
@@ -15,7 +18,11 @@ import java.io.File;
 import java.io.IOException;
 import java.util.ArrayList;
 import java.util.List;
+import java.util.Scanner;
 import java.util.Vector;
+import java.util.concurrent.TimeUnit;
+import java.util.regex.Matcher;
+import java.util.regex.Pattern;
 
 /**
  * Project: HadoopDFS
@@ -24,7 +31,7 @@ import java.util.Vector;
  * 2017/1/4
  */
 @Service
-public class ScpService {
+public class SSHService {
     private Connection connection;
 
     @Value("${persistent.local.tmp.dir}")
@@ -156,5 +163,50 @@ public class ScpService {
         } catch (IOException e) {
             e.printStackTrace();
         }
+    }
+
+    /***
+     * 返回Slave node的剩余空间
+     * @param slaveNode
+     * @return
+     */
+    public int getSlaveAvailableSpace(SlaveNode slaveNode) {
+        int space = -1;
+        final SSHClient ssh = new SSHClient();
+        ssh.addHostKeyVerifier((s, i, publicKey) -> true);
+        try {
+
+            ssh.connect(slaveNode.getSlaveIP());
+            ssh.authPassword(slaveNode.getUsername(), slaveNode.getPassword());
+            try (Session session = ssh.startSession()) {
+                final Session.Command cmd = session.exec("df " + slaveNode.getPathFolder());
+                Scanner scanner = new Scanner(IOUtils.readFully(cmd.getInputStream()).toString());
+                scanner.nextLine();
+                String line = scanner.nextLine();
+                Matcher matcher = Pattern.compile("\\d+").matcher(line);
+                int cnt = 0;
+                while (matcher.find()) {
+                    cnt++;
+                    if (cnt == 3) {
+                        space = Integer.parseInt(matcher.group());
+                        Util.printlnTime(slaveNode + " space " + space);
+                    }
+                }
+                cmd.join(5, TimeUnit.SECONDS);
+//                System.out.println("\n** exit status: " + cmd.getExitStatus());
+            } catch (Exception e) {
+                e.printStackTrace();
+            }
+        } catch (IOException e) {
+            e.printStackTrace();
+        } finally {
+            try {
+                ssh.disconnect();
+            } catch (IOException e) {
+                e.printStackTrace();
+            }
+        }
+
+        return space;
     }
 }

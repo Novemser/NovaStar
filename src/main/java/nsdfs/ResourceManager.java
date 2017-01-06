@@ -7,13 +7,15 @@ import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.beans.factory.annotation.Value;
 import org.springframework.stereotype.Component;
 import service.PersistentService;
-import service.ScpService;
+import service.SSHService;
+import util.Constants;
 import util.FileStatus;
 import util.Util;
 
 import java.io.Serializable;
 import java.util.*;
 import java.util.concurrent.CountDownLatch;
+import java.util.concurrent.atomic.AtomicLong;
 
 /**
  * Project: HadoopDFS
@@ -29,7 +31,7 @@ public class ResourceManager implements Serializable {
     private List<SlaveNode> slaveNodes = new ArrayList<>();
 
     @Autowired
-    private ScpService scpService;
+    private SSHService sshService;
 
     @Value("#{'${node.ip}'.split(',')}")
     private List<String> slaveIps;
@@ -122,7 +124,7 @@ public class ResourceManager implements Serializable {
 
                     // 当失去连接次数==2次以后，将该节点从可用节点中删去
                     // 并且将这个节点存储的所有数据都保存在别的节点上
-                    if (slaveNode.getOutCount() == 1) {
+                    if (slaveNode.getOutCount() == 2) {
                         migrantData(slaveNode);
                     }
 
@@ -211,6 +213,10 @@ public class ResourceManager implements Serializable {
                         }
                     }
 
+                    // 没有可以拿来用的节点……x
+                    if (null == availOtherBlock)
+                        return;
+
                     List<SlaveNode> availableNodes = getAvailableSlaveNodes();
                     SlaveNode nodeToMigrant = null;
                     SlaveNode nodeFromMigrant = null;
@@ -223,18 +229,18 @@ public class ResourceManager implements Serializable {
                         }
                     }
                     // 出错，没有找到满足条件的slave
-                    if (null == nodeToMigrant || null == availOtherBlock || null == nodeFromMigrant)
+                    if (null == nodeToMigrant || null == nodeFromMigrant)
                         return;
 
                     // 将block的数据拿过来然后放在新的slave上
                     // 把otherBlockSample的数据取过来
-                    boolean status = scpService.getFile(nodeFromMigrant, availOtherBlock.getBlock().getAbsPath());
+                    boolean status = sshService.getFile(nodeFromMigrant, availOtherBlock.getBlock().getAbsPath());
 
                     if (status) {
                         // 重命名成需要的blockName
-                        scpService.renameBlock(availOtherBlock.getBlock().getBlockName(), deadFileBlock.getBlock().getBlockName());
+                        sshService.renameBlock(availOtherBlock.getBlock().getBlockName(), deadFileBlock.getBlock().getBlockName());
                         // 在新的节点上复制数据
-                        scpService.putFile(nodeToMigrant, deadFileBlock.getBlock().getBlockName(), nodeToMigrant.getPathFolder());
+                        sshService.putFile(nodeToMigrant, deadFileBlock.getBlock().getBlockName(), nodeToMigrant.getPathFolder());
 
 
                         // TODO:更新namespace
@@ -321,7 +327,7 @@ public class ResourceManager implements Serializable {
             if (null != storageNode) {
                 // TODO:根据文件名验证文件存在
                 if (!slaveLSDirs.containsKey(storageNode))
-                    slaveLSDirs.put(storageNode, scpService.lsBySlave(storageNode));
+                    slaveLSDirs.put(storageNode, sshService.lsBySlave(storageNode));
 
                 List<SFTPv3DirectoryEntry> directoryEntries = slaveLSDirs.get(storageNode);
                 boolean exist = false;
@@ -382,9 +388,38 @@ public class ResourceManager implements Serializable {
 
     public void formatDisk() {
         for (SlaveNode slaveNode : getAvailableSlaveNodes()) {
-            scpService.clearSlaveDir(slaveNode);
+            sshService.clearSlaveDir(slaveNode);
         }
         PersistentService.persistMetadata(this, metaDataPath);
 
+    }
+
+    public long calculateTotalSpace() {
+        AtomicLong availSpace = new AtomicLong();
+        List<SlaveNode> nodeList = getAvailableSlaveNodes();
+
+        CountDownLatch latch = new CountDownLatch(getAvailableNodeCount());
+        for (SlaveNode slaveNode : nodeList) {
+            new Thread(() -> {
+                availSpace.addAndGet(sshService.getSlaveAvailableSpace(slaveNode));
+                latch.countDown();
+            }).start();
+        }
+
+        try {
+            latch.await();
+        } catch (InterruptedException e) {
+            e.printStackTrace();
+        }
+
+        return availSpace.get() * 1024;
+    }
+
+    public int calculateUsedSpace() {
+        int usedSpace = 0;
+        for (FileMetadata metadata : metadataList) {
+            usedSpace += metadata.getFileSize();
+        }
+        return usedSpace * Constants.REDUNDANT_COUNT;
     }
 }

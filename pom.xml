@@ -164,7 +164,11 @@
             <artifactId>spring-data-jpa</artifactId>
             <version>1.10.1.RELEASE</version>
         </dependency>
-
+        <dependency>
+            <groupId>com.hierynomus</groupId>
+            <artifactId>sshj</artifactId>
+            <version>0.19.0</version>
+        </dependency>
 
     </dependencies>
     <build>
