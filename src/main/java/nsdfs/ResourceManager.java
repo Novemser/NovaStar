@@ -53,7 +53,7 @@ public class ResourceManager implements Serializable {
 
     public void initSlaveList() {
         for (int i = 0; i < slaveIps.size(); i++) {
-            SlaveNode node = new SlaveNode("Slave" + i, slaveIps.get(i),
+            SlaveNode node = new SlaveNode("Node-" + (i + 1), slaveIps.get(i),
                     username,
                     password,
                     pathFolder);
@@ -257,7 +257,14 @@ public class ResourceManager implements Serializable {
             }
             // TODO:否则就是挂掉了
             else {
+//                List<FileBlock> blocksToRemove = new ArrayList<>();
+                for (Map.Entry<FileBlock, FileMetadata> entry : blocksToTransfer.entrySet()) {
+                    FileBlock deadFileBlock = entry.getKey();
+                    FileMetadata metadata = entry.getValue();
 
+                    boolean flag = metadata.removeFileBlock(deadFileBlock);
+                    System.out.println("Remove:" + flag);
+                }
             }
         }).start();
 

@@ -71,7 +71,7 @@ public class MasterService {
 
             // 从随机的起始节点依次往后取N个节点存储
             int nodeIndex = 0;
-            SlaveNode node;
+            SlaveNode node, lastNode = null;
             Block block;
             FileBlock fileBlock;
             for (int j = 0; j < Constants.REDUNDANT_COUNT; j++) {
@@ -87,6 +87,12 @@ public class MasterService {
 
                 // 根据计算生成的索引找到下一个node
                 node = manager.getNextAvailSlave(nodeIndex);
+
+                // 如果这个节点已经存储过了就不用再存一遍了
+                if (node.equals(lastNode))
+                    continue;
+
+                lastNode = node;
                 block = manager.createNextBlock();
                 // 设置block的信息
                 block.setSlaveName(node.getSlaveName());

@@ -33,6 +33,34 @@ public class FileMetadata implements Serializable {
         }
     }
 
+    public boolean removeFileBlock(FileBlock blockToRemove) {
+        if (null == blockToRemove)
+            return false;
+
+        List<List<FileBlock>> blocks = fileBlocks;
+        int idI = -1, idJ = -1;
+
+        for (int i = 0; i < blocks.size(); i++) {
+            List<FileBlock> tmpList = blocks.get(i);
+            for (int j = 0; j < tmpList.size(); j++) {
+                FileBlock tmpBlock = tmpList.get(j);
+                if (tmpBlock.equals(blockToRemove)) {
+                    idI = i;
+                    idJ = j;
+                    break;
+                }
+            }
+        }
+
+        FileBlock removedBlock = null;
+        // Found
+        if (idI != -1 && idJ != -1) {
+            removedBlock = fileBlocks.get(idI).remove(idJ);
+        }
+
+        return blockToRemove.equals(removedBlock);
+    }
+
     public int getRealBlockCount() {
         return realBlockCount;
     }
