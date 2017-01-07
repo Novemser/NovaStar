@@ -22,7 +22,7 @@ public class FileMetadata implements Serializable {
 
     private String fileName;
 
-    private int fileSize;
+    private long fileSize;
 
     private String absPath;
 
@@ -127,7 +127,7 @@ public class FileMetadata implements Serializable {
 //        this.fileBlocks = fileBlocks;
 //    }
 
-    public int getFileSize() {
+    public long getFileSize() {
         return fileSize;
     }
 

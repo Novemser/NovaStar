@@ -82,6 +82,7 @@ public class SSHService {
 
             boolean isAuthenticated = authWithSlave(slaveNode);
             if (isAuthenticated) {
+                initSlaveDir(slaveNode);
                 SCPClient scpClient = connection.createSCPClient();
                 scpClient.put(localTempDir + "\\" + fileName, remoteTargetDirectory);
                 Util.printlnTime("上传成功");
@@ -163,6 +164,23 @@ public class SSHService {
         } catch (IOException e) {
             e.printStackTrace();
         }
+    }
+
+    public void initSlaveDir(SlaveNode slaveNode) {
+        connection = new Connection(slaveNode.getSlaveIP(), Constants.defaultPort);
+
+        try {
+            connection.connect();
+            boolean isAuthenticated = authWithSlave(slaveNode);
+            if (isAuthenticated) {
+                SFTPv3Client client = new SFTPv3Client(connection);
+                client.mkdir(slaveNode.getPathFolder(), 755);
+            }
+
+        } catch (IOException e) {
+            e.printStackTrace();
+        }
+
     }
 
     /***

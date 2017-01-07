@@ -252,6 +252,7 @@ public class ResourceManager implements Serializable {
                     }
 
                 }
+                sshService.clearLocalDirectory();
                 PersistentService.persistMetadata(this, metaDataPath);
 
             }

@@ -4,6 +4,7 @@ import ch.ethz.ssh2.SFTPv3Client;
 import ch.ethz.ssh2.SFTPv3DirectoryEntry;
 import nsdfs.slave.SlaveNode;
 import service.SSHService;
+import util.Constants;
 
 import java.io.IOException;
 import java.util.Vector;
@@ -15,7 +16,7 @@ import java.util.Vector;
  * 2016/12/28
  */
 public class ScpTest {
-    private static String HOST = "novemser.vicp.io";
+    private static String HOST = "192.168.52.134";
     private static int PORT = 7000;
     private static String USER = "nova";//登录用户名
     private static String PASSWORD = "a19951106";//生成私钥的密码和登录密码，这两个共用这个密码
@@ -86,20 +87,36 @@ public class ScpTest {
             connection.close();
         }
     }
+    public static void initSlaveDir(SlaveNode slaveNode) {
+        connection = new Connection(slaveNode.getSlaveIP(), Constants.defaultPort);
+
+        try {
+            connection.connect();
+            boolean isAuthenticated = isAuthedWithPassword(slaveNode.getUsername(), slaveNode.getPassword());
+            if (isAuthenticated) {
+                SFTPv3Client client = new SFTPv3Client(connection);
+                client.mkdir(slaveNode.getPathFolder(), 0777);
+            }
+
+        } catch (IOException e) {
+            e.printStackTrace();
+        }
+
+    }
 
     public static void main(String[] args) {
         SSHService SSHService = new SSHService();
         SlaveNode node = new SlaveNode("Slave" + 1, HOST,
                 "nova",
                 "a19951106",
-                "/home/nova/NovaStar");
+                "/home/nova/NovaStar2");
 
-        SSHService.clearSlaveDir(node);
-        try {
+        initSlaveDir(node);
+//        try {
             // getFile("/home/users/ubuntu/error.txt", "c://");
-            putFile("G:\\pac.txt", "/home/nova/NovaStar");
-        } catch (Exception e) {
-            e.printStackTrace();
-        }
+//            putFile("G:\\pac.txt", "/home/nova/NovaStar");
+//        } catch (Exception e) {
+//            e.printStackTrace();
+//        }
     }
 }
