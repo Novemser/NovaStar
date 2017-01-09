@@ -1,3 +1,6 @@
 # NovaStar
 ---
-一个简单的分布式文件系统
+
+A Tiny Flat Distributed File System.
+
+Using React & Node.js & Java EE.
