@@ -178,7 +178,7 @@ public class SSHService {
             }
 
         } catch (IOException e) {
-            e.printStackTrace();
+//            e.printStackTrace();
         }
 
     }
