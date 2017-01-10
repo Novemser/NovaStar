@@ -15,6 +15,7 @@
     "http-proxy": "^1.16.2",
     "jquery": "^3.1.1",
     "querystring": "^0.2.0",
+    "queue-fun": "^0.3.2",
     "scp2": "^0.5.0",
     "sftp-promises": "^1.4.0",
     "split-file": "^1.2.0",

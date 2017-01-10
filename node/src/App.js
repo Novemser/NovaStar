@@ -30,7 +30,7 @@ import $ from 'jquery';
 const styles = {
     card : {
         margin : '0 auto',
-        maxWidth : '1024px',
+        maxWidth : '1076px',
         padding : '32px 0',
     },
     table : {
@@ -44,7 +44,6 @@ const styles = {
     },
     tableRightColumn : {
         textAlign : 'right',
-        paddingRight : 0,
     },
     button: {
         margin: 12,
@@ -452,15 +451,17 @@ class App extends React.Component {
 
                 const list = data.file_list;
 
-                let current_list = list.slice((this.state.current_page - 1) * 10, (this.state.current_page - 1) * 10 + 10);
                 let pages_num = parseInt((list.length / 10), 10) + ((list.length % 10 > 0) ? 1 : 0) || 1;
+                let current_page = Math.min(this.state.current_page, pages_num);
+                let current_list = list.slice((current_page - 1) * 10, (current_page - 1) * 10 + 10);
                 this.setState({
+                    current_page : current_page,
                     blockSize : data.BLOCK_SIZE,
                     file_list : list,
                     pages_num : pages_num,
                     current_list : current_list,
-                    disableNextButton: ((parseInt(this.state.current_page, 10)) === pages_num),
-                    disablePreviousButton: ((parseInt(this.state.current_page, 10)) === 1),
+                    disableNextButton: ((parseInt(current_page, 10)) === pages_num),
+                    disablePreviousButton: ((parseInt(current_page, 10)) === 1),
                 });
                 this.getSpaceStatus();
             }.bind(this),
@@ -525,7 +526,9 @@ class App extends React.Component {
                 console.log(data);
                 this.hiddenProgress(true);
                 if(data !== 'File Not Found') {
-                    setTimeout(()=>window.open(data), 5000);
+                    var time = 500;
+                    if(data.slice(-3) === 'mp4') time = 5000;
+                    setTimeout(()=>window.open(data), time);
                 }
             }.bind(this),
             error : function(xhr, textStatus) {
@@ -545,15 +548,6 @@ class App extends React.Component {
         setInterval(this.getFileList, 32000);
         this.getNodeStatus();
         this.handleChange(null, null, this.state.blockSize);
-        // this.setState({
-        //     current_list : [
-        //         {
-        //             name : '2312321',
-        //             size : '221MB',
-        //             uploadTime : '2015-12-12 04:03:23'
-        //         },
-        //     ]
-        // });
     }
 
     previousPage= () => {
